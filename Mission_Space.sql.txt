@@ -1,0 +1,647 @@
+Microsoft Windows [Version 10.0.26300.9550]
+(c) Microsoft Corporation. All rights reserved.
+
+C:\Users\Sweety>mysql --local-infile=1 -u root -p
+Enter password: ***********
+Welcome to the MySQL monitor.  Commands end with ; or \g.
+Your MySQL connection id is 11
+Server version: 8.0.39 MySQL Community Server - GPL
+
+Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+
+Oracle is a registered trademark of Oracle Corporation and/or its
+affiliates. Other names may be trademarks of their respective
+owners.
+
+Type 'help;' or '\h' for help. Type '\c' to clear the current input statement.
+
+mysql> USE MissionSpace;
+Database changed
+mysql>
+mysql> LOAD DATA LOCAL INFILE 'C:/Users/Sweety/OneDrive/Documents/Mission Space/Raw Data/Space+Missions/space_missions.csv'
+    -> INTO TABLE Space
+    -> CHARACTER SET utf8mb4
+    -> FIELDS TERMINATED BY ','
+    -> OPTIONALLY ENCLOSED BY '"'
+    -> LINES TERMINATED BY '\n'
+    -> IGNORE 1 LINES
+    -> (Company, Location, `Date`, `Time`, Rocket,
+    ->  Mission, RocketStatus, Price, MissionStatus);
+Query OK, 4630 rows affected, 10 warnings (0.16 sec)
+Records: 4630  Deleted: 0  Skipped: 0  Warnings: 10
+
+mysql> SELECT COUNT(*) FROM Space;
++----------+
+| COUNT(*) |
++----------+
+|     4630 |
++----------+
+1 row in set (0.02 sec)
+
+mysql> SELECT * FROM Space LIMIT 5;
++-----------+-------------------------------------------+------------+----------+----------------+----------------+--------------+-------+---------------+
+| Company   | Location                                  | Date       | Time     | Rocket         | Mission        | RocketStatus | Price | MissionStatus |
++-----------+-------------------------------------------+------------+----------+----------------+----------------+--------------+-------+---------------+
+| RVSN USSR | Site 1/5, Baikonur Cosmodrome, Kazakhstan | 1957-10-04 | 19:28      |putnik 8K71PS | Sputnik-1      | Retired      |       | Success
+| RVSN USSR | Site 1/5, Baikonur Cosmodrome, Kazakhstan | 1957-11-03 | 02:30      |putnik 8K71PS | Sputnik-2      | Retired      |       | Success
+| US Navy   | LC-18A, Cape Canaveral AFS, Florida, USA  | 1957-12-06 | 16:44      |anguard       | Vanguard TV3   | Retired      |       | Failure
+| AMBA      | LC-26A, Cape Canaveral AFS, Florida, USA  | 1958-02-01 | 03:48      |uno I         | Explorer 1     | Retired      |       | Success
+| US Navy   | LC-18A, Cape Canaveral AFS, Florida, USA  | 1958-02-05 | 07:33      |anguard       | Vanguard TV3BU | Retired      |       | Failure
++-----------+-------------------------------------------+------------+----------+----------------+----------------+--------------+-------+---------------+
+5 rows in set (0.00 sec)
+
+mysql> DESCRIBE Space;
++---------------+--------------+------+-----+---------+-------+
+| Field         | Type         | Null | Key | Default | Extra |
++---------------+--------------+------+-----+---------+-------+
+| Company       | varchar(100) | YES  |     | NULL    |       |
+| Location      | varchar(255) | YES  |     | NULL    |       |
+| Date          | varchar(30)  | YES  |     | NULL    |       |
+| Time          | varchar(30)  | YES  |     | NULL    |       |
+| Rocket        | varchar(100) | YES  |     | NULL    |       |
+| Mission       | varchar(255) | YES  |     | NULL    |       |
+| RocketStatus  | varchar(50)  | YES  |     | NULL    |       |
+| Price         | varchar(50)  | YES  |     | NULL    |       |
+| MissionStatus | varchar(50)  | YES  |     | NULL    |       |
++---------------+--------------+------+-----+---------+-------+
+9 rows in set (0.09 sec)
+
+mysql> SELECT
+    ->     MIN(STR_TO_DATE(`Date`, '%d-%m-%Y')) AS earliest_date,
+    ->     MAX(STR_TO_DATE(`Date`, '%d-%m-%Y')) AS latest_date
+    -> FROM Space;
++---------------+-------------+
+| earliest_date | latest_date |
++---------------+-------------+
+| NULL          | NULL        |
++---------------+-------------+
+1 row in set, 9260 warnings (0.03 sec)
+
+mysql> SELECT
+    ->     COUNT(*) AS total_rows,
+    ->     SUM(Company IS NULL OR TRIM(Company) = '') AS missing_company,
+    ->     SUM(Location IS NULL OR TRIM(Location) = '') AS missing_location,
+    ->     SUM(`Date` IS NULL OR TRIM(`Date`) = '') AS missing_date,
+    ->     SUM(`Time` IS NULL OR TRIM(`Time`) = '') AS missing_time,
+    ->     SUM(Rocket IS NULL OR TRIM(Rocket) = '') AS missing_rocket,
+    ->     SUM(Mission IS NULL OR TRIM(Mission) = '') AS missing_mission,
+    ->     SUM(Price IS NULL OR TRIM(Price) = '') AS missing_price,
+    ->     SUM(MissionStatus IS NULL OR TRIM(MissionStatus) = '') AS missing_status
+    -> FROM Space;
++------------+-----------------+------------------+--------------+--------------+----------------+-----------------+---------------+----------------+
+| total_rows | missing_company | missing_location | missing_date | missing_time | missing_rocket | missing_mission | missing_price | missing_status |
++------------+-----------------+------------------+--------------+--------------+----------------+-----------------+---------------+----------------+
+|       4630 |               0 |                0 |            0 |          127 |              0 |               0 |          3365 |              0 |
++------------+-----------------+------------------+--------------+--------------+----------------+-----------------+---------------+----------------+
+1 row in set (0.03 sec)
+
+mysql> SELECT
+    ->     COALESCE(NULLIF(TRIM(MissionStatus), ''), 'Missing') AS status,
+    ->     COUNT(*) AS total
+    -> FROM Space
+    -> GROUP BY COALESCE(NULLIF(TRIM(MissionStatus), ''), 'Missing')
+    -> ORDER BY total DESC;
++--------------------+-------+
+| status             | total |
++--------------------+-------+
+           |  4162 |
+           |   357 |
+   |   107 |ilure
+ |     4 |h Failure
++--------------------+-------+
+4 rows in set (0.02 sec)
+
+mysql> SELECT
+    ->     COALESCE(NULLIF(TRIM(RocketStatus), ''), 'Missing') AS rocket_status,
+    ->     COUNT(*) AS total
+    -> FROM Space
+    -> GROUP BY COALESCE(NULLIF(TRIM(RocketStatus), ''), 'Missing')
+    -> ORDER BY total DESC;
++---------------+-------+
+| rocket_status | total |
++---------------+-------+
+| Retired       |  3620 |
+| Active        |  1010 |
++---------------+-------+
+2 rows in set (0.01 sec)
+
+mysql> DROP TABLE IF EXISTS Space_Analysis;
+Query OK, 0 rows affected, 1 warning (0.03 sec)
+
+mysql> CREATE TABLE Space_Analysis AS
+    -> SELECT
+    ->     NULLIF(TRIM(Company), '') AS Company,
+    ->     NULLIF(TRIM(Location), '') AS Location,
+    ->
+    ->     STR_TO_DATE(
+    ->         NULLIF(TRIM(`Date`), ''),
+    ->         '%d-%m-%Y'
+    ->     ) AS MissionDate,
+    ->
+    ->     NULLIF(TRIM(`Time`), '') AS MissionTime,
+    ->     NULLIF(TRIM(Rocket), '') AS Rocket,
+    ->     NULLIF(TRIM(Mission), '') AS Mission,
+    ->     NULLIF(TRIM(RocketStatus), '') AS RocketStatus,
+    ->
+    ->     CAST(
+    ->         NULLIF(
+    ->             REPLACE(
+    ->                 REPLACE(
+    ->                     REPLACE(TRIM(Price), '$', ''),
+    ->                     ',', ''
+    ->                 ),
+    ->                 ' ', ''
+    ->             ),
+    ->             ''
+    ->         ) AS DECIMAL(12,2)
+    ->     ) AS Price,
+    ->  NULLIF(TRIM(MissionStatus), '') AS MissionStatus
+    ->
+    -> FROM Space;
+ERROR 1411 (HY000): Incorrect datetime value: '1957-10-04' for function str_to_date
+mysql> CREATE TABLE Space_Analysis AS
+    -> SELECT
+    ->     NULLIF(TRIM(Company), '') AS Company,
+    ->     NULLIF(TRIM(Location), '') AS Location,
+    ->     STR_TO_DATE(
+    ->         NULLIF(TRIM(`Date`), ''),
+    ->         '%d-%m-%Y'
+    ->     ) AS MissionDate,
+    ->     NULLIF(TRIM(`Time`), '') AS MissionTime,
+    ->     NULLIF(TRIM(Rocket), '') AS Rocket,
+    ->     NULLIF(TRIM(Mission), '') AS Mission,
+    ->     NULLIF(TRIM(RocketStatus), '') AS RocketStatus,
+    ->     CAST(
+    ->         NULLIF(
+    ->             REPLACE(
+    ->                 REPLACE(
+    ->                     REPLACE(TRIM(Price), '$', ''),
+    ->                     ',', ''
+    ->                 ),
+    ->                 ' ', ''
+    ->             ),
+    ->             ''
+    ->         ) AS DECIMAL(12,2)
+    ->     ) AS Price,
+    ->     NULLIF(TRIM(MissionStatus), '') AS MissionStatus
+    ->
+    -> FROM Space;
+ERROR 1411 (HY000): Incorrect datetime value: '1957-10-04' for function str_to_date
+mysql>
+mysql> CREATE TABLE Space_Analysis AS
+    -> SELECT
+    ->     NULLIF(TRIM(Company), '') AS Company,
+    ->     NULLIF(TRIM(Location), '') AS Location,
+    ->
+    ->     COALESCE(
+    ->         STR_TO_DATE(NULLIF(TRIM(`Date`), ''), '%Y-%m-%d'),
+    ->         STR_TO_DATE(NULLIF(TRIM(`Date`), ''), '%d-%m-%Y')
+    ->     ) AS MissionDate,
+    ->
+    ->     NULLIF(TRIM(`Time`), '') AS MissionTime,
+    ->     NULLIF(TRIM(Rocket), '') AS Rocket,
+    ->     NULLIF(TRIM(Mission), '') AS Mission,
+    ->     NULLIF(TRIM(RocketStatus), '') AS RocketStatus,
+    ->
+    ->     CAST(
+    ->         NULLIF(
+    ->             REPLACE(
+    ->                 REPLACE(
+    ->                     REPLACE(TRIM(Price), '$', ''),
+    ->                     ',', ''
+    ->                 ),
+    ->                 ' ', ''
+    ->             ),
+    ->             ''
+    ->         ) AS DECIMAL(12,2)
+    ->     ) AS Price,
+    ->
+    ->     NULLIF(TRIM(MissionStatus), '') AS MissionStatus
+    ->
+    -> FROM Space;
+Query OK, 4630 rows affected (0.13 sec)
+Records: 4630  Duplicates: 0  Warnings: 0
+
+mysql> DESCRIBE Space_Analysis;
++---------------+---------------+------+-----+---------+-------+
+| Field         | Type          | Null | Key | Default | Extra |
++---------------+---------------+------+-----+---------+-------+
+| Company       | varchar(100)  | YES  |     | NULL    |       |
+| Location      | varchar(255)  | YES  |     | NULL    |       |
+| MissionDate   | date          | YES  |     | NULL    |       |
+| MissionTime   | varchar(30)   | YES  |     | NULL    |       |
+| Rocket        | varchar(100)  | YES  |     | NULL    |       |
+| Mission       | varchar(255)  | YES  |     | NULL    |       |
+| RocketStatus  | varchar(50)   | YES  |     | NULL    |       |
+| Price         | decimal(12,2) | YES  |     | NULL    |       |
+| MissionStatus | varchar(50)   | YES  |     | NULL    |       |
++---------------+---------------+------+-----+---------+-------+
+9 rows in set (0.01 sec)
+
+mysql> SELECT `Date`, MissionDate
+    -> FROM Space_Analysis
+    -> JOIN Space
+    -> LIMIT 10;
++------------+-------------+
+| Date       | MissionDate |
++------------+-------------+
+| 2022-07-29 | 1957-10-04  |
+| 2022-07-27 | 1957-10-04  |
+| 2022-07-24 | 1957-10-04  |
+| 2022-07-24 | 1957-10-04  |
+| 2022-07-22 | 1957-10-04  |
+| 2022-07-17 | 1957-10-04  |
+| 2022-07-15 | 1957-10-04  |
+| 2022-07-15 | 1957-10-04  |
+| 2022-07-13 | 1957-10-04  |
+| 2022-07-13 | 1957-10-04  |
++------------+-------------+
+10 rows in set (0.02 sec)
+
+mysql> SELECT COUNT(*) AS analysis_records
+    -> FROM Space_Analysis;
++------------------+
+| analysis_records |
++------------------+
+|             4630 |
++------------------+
+1 row in set (0.01 sec)
+
+mysql> SELECT
+    ->     YEAR(MissionDate) AS MissionYear,
+    ->     COUNT(*) AS TotalMissions
+    -> FROM Space_Analysis
+    -> WHERE MissionDate IS NOT NULL
+    -> GROUP BY YEAR(MissionDate)
+    -> ORDER BY MissionYear;
++-------------+---------------+
+| MissionYear | TotalMissions |
++-------------+---------------+
+|        1957 |             3 |
+|        1958 |            28 |
+|        1959 |            20 |
+|        1960 |            39 |
+|        1961 |            52 |
+|        1962 |            82 |
+|        1963 |            41 |
+|        1964 |            60 |
+|        1965 |            87 |
+|        1966 |           101 |
+|        1967 |           106 |
+|        1968 |           103 |
+|        1969 |           103 |
+|        1970 |           107 |
+|        1971 |           119 |
+|        1972 |            99 |
+|        1973 |           103 |
+|        1974 |            98 |
+|        1975 |           113 |
+|        1976 |           113 |
+|        1977 |           114 |
+|        1978 |            97 |
+|        1979 |            49 |
+|        1980 |            55 |
+|        1981 |            71 |
+|        1982 |            67 |
+|        1983 |            66 |
+|        1984 |            69 |
+|        1985 |            74 |
+|        1986 |            62 |
+|        1987 |            56 |
+|        1988 |            59 |
+|        1989 |            52 |
+|        1990 |            80 |
+|        1991 |            59 |
+|        1992 |            62 |
+|        1993 |            61 |
+|        1994 |            64 |
+|        1995 |            61 |
+|        1996 |            60 |
+|        1997 |            70 |
+|        1998 |            68 |
+|        1999 |            57 |
+|        2000 |            57 |
+|        2001 |            43 |
+|        2002 |            49 |
+|        2003 |            52 |
+|        2004 |            40 |
+|        2005 |            37 |
+|        2006 |            49 |
+|        2007 |            50 |
+|        2008 |            48 |
+|        2009 |            50 |
+|        2010 |            37 |
+|        2011 |            42 |
+|        2012 |            38 |
+|        2013 |            46 |
+|        2014 |            53 |
+|        2015 |            52 |
+|        2016 |            90 |
+|        2017 |            92 |
+|        2018 |           117 |
+|        2019 |           109 |
+|        2020 |           119 |
+|        2021 |           157 |
+|        2022 |            93 |
++-------------+---------------+
+66 rows in set (0.02 sec)
+
+mysql> SELECT
+    ->     FLOOR(YEAR(MissionDate) / 10) * 10 AS Decade,
+    ->     COUNT(*) AS TotalMissions
+    -> FROM Space_Analysis
+    -> WHERE MissionDate IS NOT NULL
+    -> GROUP BY FLOOR(YEAR(MissionDate) / 10) * 10
+    -> ORDER BY Decade;
++--------+---------------+
+| Decade | TotalMissions |
++--------+---------------+
+|   1950 |            51 |
+|   1960 |           774 |
+|   1970 |          1012 |
+|   1980 |           631 |
+|   1990 |           642 |
+|   2000 |           475 |
+|   2010 |           676 |
+|   2020 |           369 |
++--------+---------------+
+8 rows in set (0.02 sec)
+
+mysql> SELECT
+    ->     YEAR(MissionDate) AS MissionYear,
+    ->     COUNT(*) AS TotalMissions
+    -> FROM Space_Analysis
+    -> WHERE MissionDate IS NOT NULL
+    -> GROUP BY YEAR(MissionDate)
+    -> ORDER BY TotalMissions DESC
+    -> LIMIT 10;
++-------------+---------------+
+| MissionYear | TotalMissions |
++-------------+---------------+
+|        2021 |           157 |
+|        2020 |           119 |
+|        1971 |           119 |
+|        2018 |           117 |
+|        1977 |           114 |
+|        1975 |           113 |
+|        1976 |           113 |
+|        2019 |           109 |
+|        1970 |           107 |
+|        1967 |           106 |
++-------------+---------------+
+10 rows in set (0.01 sec)
+
+mysql> SELECT
+    ->     COALESCE(NULLIF(TRIM(MissionStatus), ''), 'Missing') AS Status,
+    ->     COUNT(*) AS TotalMissions,
+    ->     ROUND(
+    ->         COUNT(*) * 100.0 /
+    ->         (SELECT COUNT(*) FROM Space_Analysis),
+    ->         2
+    ->     ) AS PercentageOfAllRecords
+    -> FROM Space_Analysis
+    -> GROUP BY COALESCE(NULLIF(TRIM(MissionStatus), ''), 'Missing')
+    -> ORDER BY TotalMissions DESC;
++--------------------+---------------+------------------------+
+| Status             | TotalMissions | PercentageOfAllRecords |
++--------------------+---------------+------------------------+
+           |          4162 |                  89.89 |
+           |           357 |                   7.71 |
+   |           107 |                   2.31 |
+ |             4 |                   0.09 |
++--------------------+---------------+------------------------+
+4 rows in set (0.02 sec)
+
+mysql> SELECT
+    ->     COUNT(*) AS KnownStatusRecords,
+    ->     SUM(LOWER(TRIM(MissionStatus)) = 'success') AS SuccessfulMissions,
+    ->     ROUND(
+    ->         100.0 * SUM(LOWER(TRIM(MissionStatus)) = 'success')
+    ->         / NULLIF(COUNT(*), 0),
+    ->         2
+    ->     ) AS SuccessRatePercent
+    -> FROM Space_Analysis
+    -> WHERE MissionStatus IS NOT NULL
+    ->   AND TRIM(MissionStatus) <> '';
++--------------------+--------------------+--------------------+
+| KnownStatusRecords | SuccessfulMissions | SuccessRatePercent |
++--------------------+--------------------+--------------------+
+|               4630 |                  0 |               0.00 |
++--------------------+--------------------+--------------------+
+1 row in set (0.02 sec)
+
+mysql> SELECT
+    ->     YEAR(MissionDate) AS MissionYear,
+    ->     COUNT(*) AS TotalMissions,
+    ->     SUM(LOWER(TRIM(MissionStatus)) = 'success') AS Successful,
+    ->     SUM(LOWER(TRIM(MissionStatus)) = 'failure') AS Failed,
+    ->     SUM(LOWER(TRIM(MissionStatus)) = 'partial failure') AS PartialFailure,
+    ->     SUM(LOWER(TRIM(MissionStatus)) = 'prelaunch failure') AS PrelaunchFailure
+    -> FROM Space_Analysis
+    -> WHERE MissionDate IS NOT NULL
+    -> GROUP BY YEAR(MissionDate)
+    -> ORDER BY MissionYear;
++-------------+---------------+------------+--------+----------------+------------------+
+| MissionYear | TotalMissions | Successful | Failed | PartialFailure | PrelaunchFailure |
++-------------+---------------+------------+--------+----------------+------------------+
+|        1957 |             3 |          0 |      0 |              0 |                0 |
+|        1958 |            28 |          0 |      0 |              0 |                0 |
+|        1959 |            20 |          0 |      0 |              0 |                0 |
+|        1960 |            39 |          0 |      0 |              0 |                0 |
+|        1961 |            52 |          0 |      0 |              0 |                0 |
+|        1962 |            82 |          0 |      0 |              0 |                0 |
+|        1963 |            41 |          0 |      0 |              0 |                0 |
+|        1964 |            60 |          0 |      0 |              0 |                0 |
+|        1965 |            87 |          0 |      0 |              0 |                0 |
+|        1966 |           101 |          0 |      0 |              0 |                0 |
+|        1967 |           106 |          0 |      0 |              0 |                0 |
+|        1968 |           103 |          0 |      0 |              0 |                0 |
+|        1969 |           103 |          0 |      0 |              0 |                0 |
+|        1970 |           107 |          0 |      0 |              0 |                0 |
+|        1971 |           119 |          0 |      0 |              0 |                0 |
+|        1972 |            99 |          0 |      0 |              0 |                0 |
+|        1973 |           103 |          0 |      0 |              0 |                0 |
+|        1974 |            98 |          0 |      0 |              0 |                0 |
+|        1975 |           113 |          0 |      0 |              0 |                0 |
+|        1976 |           113 |          0 |      0 |              0 |                0 |
+|        1977 |           114 |          0 |      0 |              0 |                0 |
+|        1978 |            97 |          0 |      0 |              0 |                0 |
+|        1979 |            49 |          0 |      0 |              0 |                0 |
+|        1980 |            55 |          0 |      0 |              0 |                0 |
+|        1981 |            71 |          0 |      0 |              0 |                0 |
+|        1982 |            67 |          0 |      0 |              0 |                0 |
+|        1983 |            66 |          0 |      0 |              0 |                0 |
+|        1984 |            69 |          0 |      0 |              0 |                0 |
+|        1985 |            74 |          0 |      0 |              0 |                0 |
+|        1986 |            62 |          0 |      0 |              0 |                0 |
+|        1987 |            56 |          0 |      0 |              0 |                0 |
+|        1988 |            59 |          0 |      0 |              0 |                0 |
+|        1989 |            52 |          0 |      0 |              0 |                0 |
+|        1990 |            80 |          0 |      0 |              0 |                0 |
+|        1991 |            59 |          0 |      0 |              0 |                0 |
+|        1992 |            62 |          0 |      0 |              0 |                0 |
+|        1993 |            61 |          0 |      0 |              0 |                0 |
+|        1994 |            64 |          0 |      0 |              0 |                0 |
+|        1995 |            61 |          0 |      0 |              0 |                0 |
+|        1996 |            60 |          0 |      0 |              0 |                0 |
+|        1997 |            70 |          0 |      0 |              0 |                0 |
+|        1998 |            68 |          0 |      0 |              0 |                0 |
+|        1999 |            57 |          0 |      0 |              0 |                0 |
+|        2000 |            57 |          0 |      0 |              0 |                0 |
+|        2001 |            43 |          0 |      0 |              0 |                0 |
+|        2002 |            49 |          0 |      0 |              0 |                0 |
+|        2003 |            52 |          0 |      0 |              0 |                0 |
+|        2004 |            40 |          0 |      0 |              0 |                0 |
+|        2005 |            37 |          0 |      0 |              0 |                0 |
+|        2006 |            49 |          0 |      0 |              0 |                0 |
+|        2007 |            50 |          0 |      0 |              0 |                0 |
+|        2008 |            48 |          0 |      0 |              0 |                0 |
+|        2009 |            50 |          0 |      0 |              0 |                0 |
+|        2010 |            37 |          0 |      0 |              0 |                0 |
+|        2011 |            42 |          0 |      0 |              0 |                0 |
+|        2012 |            38 |          0 |      0 |              0 |                0 |
+|        2013 |            46 |          0 |      0 |              0 |                0 |
+|        2014 |            53 |          0 |      0 |              0 |                0 |
+|        2015 |            52 |          0 |      0 |              0 |                0 |
+|        2016 |            90 |          0 |      0 |              0 |                0 |
+|        2017 |            92 |          0 |      0 |              0 |                0 |
+|        2018 |           117 |          0 |      0 |              0 |                0 |
+|        2019 |           109 |          0 |      0 |              0 |                0 |
+|        2020 |           119 |          0 |      0 |              0 |                0 |
+|        2021 |           157 |          0 |      0 |              0 |                0 |
+|        2022 |            93 |          0 |      0 |              0 |                0 |
++-------------+---------------+------------+--------+----------------+------------------+
+66 rows in set (0.01 sec)
+
+mysql> SELECT
+    ->     COUNT(*) AS TotalRows,
+    ->     COUNT(MissionDate) AS ValidDates,
+    ->     MIN(MissionDate) AS EarliestDate,
+    ->     MAX(MissionDate) AS LatestDate
+    -> FROM Space_Analysis;
++-----------+------------+--------------+------------+
+| TotalRows | ValidDates | EarliestDate | LatestDate |
++-----------+------------+--------------+------------+
+|      4630 |       4630 | 1957-10-04   | 2022-07-29 |
++-----------+------------+--------------+------------+
+1 row in set (0.01 sec)
+
+mysql> SELECT
+    ->     YEAR(MissionDate) AS MissionYear,
+    ->     COUNT(*) AS TotalMissions
+    -> FROM Space_Analysis
+    -> WHERE MissionDate IS NOT NULL
+    -> GROUP BY YEAR(MissionDate)
+    -> ORDER BY MissionYear;
++-------------+---------------+
+| MissionYear | TotalMissions |
++-------------+---------------+
+|        1957 |             3 |
+|        1958 |            28 |
+|        1959 |            20 |
+|        1960 |            39 |
+|        1961 |            52 |
+|        1962 |            82 |
+|        1963 |            41 |
+|        1964 |            60 |
+|        1965 |            87 |
+|        1966 |           101 |
+|        1967 |           106 |
+|        1968 |           103 |
+|        1969 |           103 |
+|        1970 |           107 |
+|        1971 |           119 |
+|        1972 |            99 |
+|        1973 |           103 |
+|        1974 |            98 |
+|        1975 |           113 |
+|        1976 |           113 |
+|        1977 |           114 |
+|        1978 |            97 |
+|        1979 |            49 |
+|        1980 |            55 |
+|        1981 |            71 |
+|        1982 |            67 |
+|        1983 |            66 |
+|        1984 |            69 |
+|        1985 |            74 |
+|        1986 |            62 |
+|        1987 |            56 |
+|        1988 |            59 |
+|        1989 |            52 |
+|        1990 |            80 |
+|        1991 |            59 |
+|        1992 |            62 |
+|        1993 |            61 |
+|        1994 |            64 |
+|        1995 |            61 |
+|        1996 |            60 |
+|        1997 |            70 |
+|        1998 |            68 |
+|        1999 |            57 |
+|        2000 |            57 |
+|        2001 |            43 |
+|        2002 |            49 |
+|        2003 |            52 |
+|        2004 |            40 |
+|        2005 |            37 |
+|        2006 |            49 |
+|        2007 |            50 |
+|        2008 |            48 |
+|        2009 |            50 |
+|        2010 |            37 |
+|        2011 |            42 |
+|        2012 |            38 |
+|        2013 |            46 |
+|        2014 |            53 |
+|        2015 |            52 |
+|        2016 |            90 |
+|        2017 |            92 |
+|        2018 |           117 |
+|        2019 |           109 |
+|        2020 |           119 |
+|        2021 |           157 |
+|        2022 |            93 |
++-------------+---------------+
+66 rows in set (0.01 sec)
+
+mysql> SELECT
+    ->     COUNT(*) AS TotalWithKnownStatus,
+    ->
+    ->     SUM(CASE
+    ->         WHEN LOWER(TRIM(MissionStatus)) = 'success'
+    ->         THEN 1 ELSE 0
+    ->     END) AS SuccessfulMissions,
+    ->
+    ->     SUM(CASE
+    ->         WHEN LOWER(TRIM(MissionStatus)) = 'failure'
+    ->         THEN 1 ELSE 0
+    ->     END) AS FailedMissions,
+    ->
+    ->     ROUND(
+    ->         100.0 * SUM(CASE
+    ->             WHEN LOWER(TRIM(MissionStatus)) = 'success'
+    ->             THEN 1 ELSE 0
+    ->         END) /
+    ->         NULLIF(COUNT(MissionStatus), 0),
+    ->         2
+    ->     ) AS SuccessPercentage,
+    ->
+    ->     ROUND(
+    ->         100.0 * SUM(CASE
+    ->             WHEN LOWER(TRIM(MissionStatus)) = 'failure'
+    ->             THEN 1 ELSE 0
+    ->         END) /
+    ->         NULLIF(COUNT(MissionStatus), 0),
+    ->         2
+    ->     ) AS FailurePercentage
+    ->
+    -> FROM Space_Analysis
+    -> WHERE MissionStatus IS NOT NULL
+    ->   AND TRIM(MissionStatus) <> '';
++----------------------+--------------------+----------------+-------------------+-------------------+
+| TotalWithKnownStatus | SuccessfulMissions | FailedMissions | SuccessPercentage | FailurePercentage |
++----------------------+--------------------+----------------+-------------------+-------------------+
+|                 4630 |                  0 |              0 |              0.00 |              0.00 |
++----------------------+--------------------+----------------+-------------------+-------------------+
+1 row in set (0.01 sec)
