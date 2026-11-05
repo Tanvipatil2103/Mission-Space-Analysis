@@ -29,7 +29,7 @@ The project uses MySQL for data exploration and analysis and **Microsoft Power B
 
 ## 📈 Dashboard Preview
 
-![Mission Space Dashboard](Screenshots/Mission_Space_Dashboard.png)
+![Mission Space Dashboard](Screenshots/MissionSpace.png)
 
 ## 📂 Repository Structure
 
